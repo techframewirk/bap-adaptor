@@ -5,6 +5,7 @@ import { createAuthorizationHeader } from "./auth";
 import { v4 as uuidv4 } from 'uuid';
 import { db } from "../../config/db";
 import { client } from "../db";
+import { lookupCache } from '../../config/cache';
 
 export const triggerRequest = async (req: Request, action: string) => {
     //const action = req.body.context.action;
@@ -26,9 +27,17 @@ export const triggerRequest = async (req: Request, action: string) => {
                 throw (new Error("transaction_id, bpp_uri and bpp_id are required for non search calls"));
             }
         }
+        var subscribers = [];
+        if (bpp_uri) {
+            subscribers.push({ subscriber_url: bpp_uri, type: 'bpp' });
+        } else {
+            subscribers = await lookupRegistry({ type: 'BG', domain })
+        }
+        /*
         const { subscriber_url } = !(bpp_uri) ?
             await lookupRegistry({ type: 'BG', domain }) :
-            { subscriber_url: bpp_uri }
+            { subscriber_url: bpp_uri } 
+        
         //await lookupRegistry({ id: req.body.context.bpp_id });
         const trigger_url = combineURLs(subscriber_url, `/${action}`);
         console.log(context.transaction_id, "Triggering", action);
@@ -37,6 +46,8 @@ export const triggerRequest = async (req: Request, action: string) => {
         console.log(context.transaction_id, "Endpoint :", trigger_url);
         const response = await axios.post(trigger_url, body, axios_config);
         console.log(response.data);
+        */
+        await makeRequest(subscribers, body, axios_config);
     } catch (error) {
         console.log(error);
         if (error instanceof Error) {
@@ -63,7 +74,52 @@ export const triggerRequest = async (req: Request, action: string) => {
     };
 }
 
-const shuffle = (array : any[]) => {
+const makeRequest = async (subscribers: any, body: any, axios_config: any) => {
+    console.log(subscribers)
+    if (subscribers[0].type.toLowerCase() === 'bg') {
+        var retry = true;
+        var index = 0;
+        while (retry) {
+            var subscriber_url = subscribers[index].subscriber_url;
+            var trigger_url = combineURLs(subscriber_url, `/${body.context.action}`);
+            console.log(body?.context?.transaction_id, "Attempt number", index+1);
+            console.log(body?.context?.transaction_id, "Triggering", body.context.action, trigger_url);
+            console.log(body?.context?.transaction_id, "headers", axios_config.headers);
+            console.log(JSON.stringify(body));
+            console.log(body?.context.transaction_id, "Endpoint :", trigger_url);
+            console.log(body?.context.transaction_id, "headers", axios_config.headers);
+            try {
+                const response = await axios.post(trigger_url, body, axios_config);
+                console.log(body?.context?.transaction_id, 'Response :', response.status, response.data);
+                retry = false;
+            } catch (error) {
+                console.log(body?.context?.transaction_id, "Error invoking search to BG ", trigger_url);
+                if (error) {
+                    if (axios.isAxiosError(error)) {
+                        console.log(body?.context?.transaction_id, "Received status ", error?.response?.status);
+                        console.log(body?.context?.transaction_id, "Received response ", error?.response?.data);
+                    }
+                }
+                index++;
+                if (index > subscribers.length-1) {
+                    throw("Gateway search failed");
+                }
+            }
+        }
+    } else {
+        var subscriber_url = subscribers[0].subscriber_url;
+        var trigger_url = combineURLs(subscriber_url, `/${body.context.action}`);
+        console.log(body?.context?.transaction_id, "Triggering", body.context.action);
+        console.log(body?.context?.transaction_id, "headers", axios_config.headers);
+        console.log(JSON.stringify(body));
+        console.log(body?.context.transaction_id, "Endpoint :", trigger_url);
+        console.log(body?.context.transaction_id, "headers", axios_config.headers);
+        const response = await axios.post(trigger_url, body, axios_config);
+        console.log(body?.context?.transaction_id, 'Response :', response.status, response.data);
+    }
+}
+
+const shuffle = (array: any[]) => {
     var m = array.length, t, i;
     // While there remain elements to shuffle…
     while (m) {
@@ -126,7 +182,7 @@ const buildContext = (action: string, core_version: string, domain: string, tran
         timestamp,
         ttl: config.ttl
     }
-    if(core_version === '0.8.2') {
+    if (core_version === '0.8.2') {
         context.domain_version = core_version
     }
     if (bpp_id) {
@@ -136,10 +192,6 @@ const buildContext = (action: string, core_version: string, domain: string, tran
         context.bpp_uri = bpp_uri
     }
     return context;
-}
-
-const random = (max: number) => {
-    return Math.floor(Math.random() * (max - 0 + 1)) + 0;
 }
 
 const createHeaderConfig = async (request: any) => {
@@ -154,18 +206,23 @@ const createHeaderConfig = async (request: any) => {
 }
 
 const lookupRegistry = async ({ type, id, domain }: { type?: string, id?: string, domain?: string }) => {
+    if (type === 'BG' && domain) {
+        const subscriber_details = lookupCache.get('bg ' + domain);
+        if (subscriber_details) {
+            console.log("Getting BG details from cache")
+            return shuffle(subscriber_details);
+        }
+    }
     console.log("Looking up registry", type || id);
     const registry_url = combineURLs(config.registry_url, '/lookup');
     const request = type ? { type, domain } : { id };
-    //const axios_config = await createHeaderConfig(request)
     try {
-        /*if(type === 'BG') {
-            return {subscriber_url : 'http://test-mobility-gateway.ngrok.io/v1/', subscriber_id: "http://test-mobility-gateway.ngrok.io"}
-        }*/
         const response = await axios.post(registry_url, request, { timeout: 3000 });
-        //const index = type === 'BG' ? random(response.data.length - 1) : 0;
-        const index = type === 'BG' ? 1 : 0;
-        const lookup_data = response.data[index];
+        if (response.data.length === 0) {
+            throw ("No subscribers found");
+        }
+        lookupCache.set('bg ' + domain, response.data, 60 * 5);
+        const lookup_data = shuffle(response.data);
         return lookup_data;
     } catch (error) {
         console.log("lookup error", error)

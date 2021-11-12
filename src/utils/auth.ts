@@ -170,7 +170,7 @@ const lookupRegistry = async (subscriber_id: string, unique_key_id: string) => {
             console.log(response.data);
             const { subscriber_id, valid_until } = response.data[0]
             const ttl = new Date(valid_until).valueOf() - new Date().valueOf() / 1000
-            //lookupCache.set(subscriber_id, response.data[0], ttl);
+            lookupCache.set(subscriber_id, response.data[0], ttl);
         }
         return response.data[0];
     } catch (error) {

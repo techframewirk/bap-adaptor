@@ -12,3 +12,4 @@
     client_mode: true for client endpoints
     protocol_mode: true for protocol endpoints
     db_url : mongodb URL
+    webhook_url : webhook URL to send protocol responses
