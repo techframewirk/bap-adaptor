@@ -23,8 +23,8 @@ export const triggerRequest = async (req: Request, action: string) => {
     const axios_config = await createHeaderConfig(body);
     try {
         if (action !== 'search') {
-            if (!(transaction_id) || !(bpp_uri) || !(bpp_id)) {
-                throw (new Error("transaction_id, bpp_uri and bpp_id are required for non search calls"));
+            if (!(bpp_uri) || !(bpp_id)) {
+                throw (new Error("bpp_uri and bpp_id are required for non search calls"));
             }
         }
         var subscribers = [];
@@ -33,23 +33,9 @@ export const triggerRequest = async (req: Request, action: string) => {
         } else {
             subscribers = await lookupRegistry({ type: 'BG', domain })
         }
-        /*
-        const { subscriber_url } = !(bpp_uri) ?
-            await lookupRegistry({ type: 'BG', domain }) :
-            { subscriber_url: bpp_uri } 
-        
-        //await lookupRegistry({ id: req.body.context.bpp_id });
-        const trigger_url = combineURLs(subscriber_url, `/${action}`);
-        console.log(context.transaction_id, "Triggering", action);
-        console.log(context.transaction_id, "headers", axios_config.headers);
-        console.log(JSON.stringify(body));
-        console.log(context.transaction_id, "Endpoint :", trigger_url);
-        const response = await axios.post(trigger_url, body, axios_config);
-        console.log(response.data);
-        */
-        await makeRequest(subscribers, body, axios_config);
+        makeRequest(subscribers, body, axios_config);
     } catch (error) {
-        console.log(error);
+        //console.log(error);
         if (error instanceof Error) {
             return {
                 context,
@@ -93,7 +79,7 @@ const makeRequest = async (subscribers: any, body: any, axios_config: any) => {
                 console.log(body?.context?.transaction_id, 'Response :', response.status, response.data);
                 retry = false;
             } catch (error) {
-                console.log(body?.context?.transaction_id, "Error invoking search to BG ", trigger_url);
+                console.log(body?.context?.transaction_id, `Error invoking ${body.context.action} to BG `, trigger_url);
                 if (error) {
                     if (axios.isAxiosError(error)) {
                         console.log(body?.context?.transaction_id, "Received status ", error?.response?.status);
@@ -114,8 +100,18 @@ const makeRequest = async (subscribers: any, body: any, axios_config: any) => {
         console.log(JSON.stringify(body));
         console.log(body?.context.transaction_id, "Endpoint :", trigger_url);
         console.log(body?.context.transaction_id, "headers", axios_config.headers);
-        const response = await axios.post(trigger_url, body, axios_config);
-        console.log(body?.context?.transaction_id, 'Response :', response.status, response.data);
+        try {
+            const response = await axios.post(trigger_url, body, axios_config);
+            console.log(body?.context?.transaction_id, 'Response :', response.status, response.data);
+        } catch (error) {
+            console.log(body?.context?.transaction_id, `Error invoking ${body.context.action} to `, trigger_url);
+            if (error) {
+                if (axios.isAxiosError(error)) {
+                    console.log(body?.context?.transaction_id, "Received status ", error?.response?.status);
+                    console.log(body?.context?.transaction_id, "Received response ", error?.response?.data);
+                }
+            }
+        }
     }
 }
 
