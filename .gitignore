@@ -1,5 +1,5 @@
 *DS_Store
 /node_modules
-dev.env
+*.env
 /dist
 key_store.json

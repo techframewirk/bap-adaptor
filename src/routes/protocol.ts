@@ -21,6 +21,38 @@ router.post("/on_search", auth, async (req: Request, res: Response) => {
     }
 });
 
+router.post("/on_select", auth, async (req: Request, res: Response) => {
+    try {
+        await handleCallback(req);
+        res.status(200).send({
+            message: {
+                ack: {
+                    status: "ACK"
+                }
+            }
+        });
+    } catch (error) {
+        console.log(error);
+        res.status(500).send((error as Error).message);
+    }
+});
+
+router.post("/on_init", auth, async (req: Request, res: Response) => {
+    try {
+        await handleCallback(req);
+        res.status(200).send({
+            message: {
+                ack: {
+                    status: "ACK"
+                }
+            }
+        });
+    } catch (error) {
+        console.log(error);
+        res.status(500).send((error as Error).message);
+    }
+});
+
 router.post("/on_confirm", auth, async (req: Request, res: Response) => {
     try {
         await handleCallback(req);

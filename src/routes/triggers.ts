@@ -14,6 +14,24 @@ router.post("/search", async (req: Request, res: Response) => {
     }
 });
 
+router.post("/select", async (req: Request, res: Response) => {
+    try {
+        const response = await triggerRequest(req, 'select');
+        res.status(200).send(response)
+    } catch (error) {
+        res.status(500).send((error as Error).message);
+    }
+});
+
+router.post("/init", async (req: Request, res: Response) => {
+    try {
+        const response = await triggerRequest(req, 'init');
+        res.status(200).send(response)
+    } catch (error) {
+        res.status(500).send((error as Error).message);
+    }
+});
+
 router.post("/confirm", async (req: Request, res: Response) => {
     try {
         const response = await triggerRequest(req, 'confirm');

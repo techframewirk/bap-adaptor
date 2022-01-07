@@ -12,9 +12,8 @@ export const createKeyPair = async () => {
     let { publicKey, privateKey } = sodium.crypto_sign_keypair();
     const publicKey_base64 = sodium.to_base64(publicKey, base64_variants.ORIGINAL);
     const privateKey_base64 = sodium.to_base64(privateKey, base64_variants.ORIGINAL);
-    key.set('public_key', publicKey_base64);
-    key.set('private_key', privateKey_base64);
-    key.save(0);
+    console.log("public_key", publicKey_base64);
+    console.log("public_key", privateKey_base64);
     console.log("Key pair created");
 }
 
@@ -25,8 +24,8 @@ export function combineURLs(baseURL: string, relativeURL: string) {
 }
 
 export const createSigningString = async (message: string, created?: string, expires?: string) => {
-    //if (!created) created = Math.floor(new Date().getTime() / 1000).toString();
-    if (!created) created = Math.floor(new Date().getTime() / 1000 - (1*60)).toString(); //TO USE IN CASE OF TIME ISSUE
+    if (!created) created = Math.floor(new Date().getTime() / 1000).toString();
+    //if (!created) created = Math.floor(new Date().getTime() / 1000 - (1*60)).toString(); //TO USE IN CASE OF TIME ISSUE
     if (!expires) expires = (parseInt(created) + (1 * 60 * 60)).toString(); //Add required time to create expired
     //const digest = createBlakeHash('blake512').update(JSON.stringify(message)).digest("base64");
     //const digest = blake2.createHash('blake2b', { digestLength: 64 }).update(Buffer.from(message)).digest("base64");
@@ -38,7 +37,7 @@ export const createSigningString = async (message: string, created?: string, exp
         `(created): ${created}
 (expires): ${expires}
 digest: BLAKE-512=${digest_base64}`
-    console.log(signing_string);
+    console.log(signing_string, message);
     return { signing_string, expires, created }
 }
 
@@ -112,6 +111,9 @@ const verifyHeader = async (header: string, req: Request) => {
         const subscriber_details = await lookupRegistry(subscriber_id, unique_key_id);
         console.log(req.body?.context?.transaction_id, subscriber_details);
         const public_key = subscriber_details.signing_public_key;
+        console.log(req.rawBody);
+        console.log(req.body?.context?.transaction_id, "recreating signing string")
+        console.log(parts);
         const { signing_string } = await createSigningString(req.rawBody, parts['created'], parts['expires']);
         const verified = await verifyMessage(parts['signature'], signing_string, public_key);
         if (!verified) {
@@ -155,14 +157,14 @@ const lookupRegistry = async (subscriber_id: string, unique_key_id: string) => {
         return subscriber_details;
     }
     try {
-        const header = await createAuthorizationHeader({ subscriber_id });
+        /*const header = await createAuthorizationHeader({ subscriber_id });
         const axios_config = {
             headers: {
                 Authorization: header
             }
-        }
+        }*/
         console.log("Looking up registry ",subscriber_id, unique_key_id);
-        const response = await axios.post(combineURLs(config.registry_url, '/lookup'), { subscriber_id, unique_key_id });
+        const response = await axios.post(combineURLs(config.registry_url, '/lookup'), { subscriber_id });
         if (response.data) {
             if (response.data.length === 0 || response.data?.status === 0) {
                 throw (new Error("Subscriber not found"));

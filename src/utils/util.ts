@@ -130,6 +130,11 @@ const shuffle = (array: any[]) => {
 }
 
 export const handleCallback = async (req: Request) => {
+    console.log(req.path);
+    if(!req.body.context.action) {
+        req.body.context.action = req.path.replace('/','');
+    }
+    console.log(req.body);
     console.log(req.body?.context?.transaction_id, "Receiving response callback");
     if (config.call_webhook) {
         try {
