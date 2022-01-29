@@ -131,10 +131,14 @@ const shuffle = (array: any[]) => {
 
 export const handleCallback = async (req: Request) => {
     console.log(req.path);
-    if(!req.body.context.action) {
+    //if(!req.body.context.action) {
         req.body.context.action = req.path.replace('/','');
+    //}
+    if(JSON.stringify(req.body,null,2).length<20000){
+        console.log(JSON.stringify(req.body,null,2));
+    } else {
+        console.log(JSON.stringify(req.body.context,null,2));
     }
-    console.log(req.body);
     console.log(req.body?.context?.transaction_id, "Receiving response callback");
     if (config.call_webhook) {
         try {
@@ -180,8 +184,8 @@ const buildContext = (action: string, core_version: string, domain: string, tran
         bap_uri: config.bap_uri,
         transaction_id,
         message_id,
-        timestamp,
-        ttl: config.ttl
+        timestamp
+        //ttl: config.ttl
     }
     if (core_version === '0.8.2') {
         context.domain_version = core_version

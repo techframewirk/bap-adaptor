@@ -15,6 +15,17 @@ router.get("/on_search", async (req: Request, res: Response) => {
     }
 });
 
+router.get("/on_init", async (req: Request, res: Response) => {
+    try {
+        const message_id: string = req.query.message_id as string;
+        const response = await getResponse(message_id, 'on_init');
+        res.status(200).send(response);
+    } catch (error) {
+        console.log(error);
+        res.status(500).send((error as Error).message);
+    }
+});
+
 router.get("/on_confirm", async (req: Request, res: Response) => {
     try {
         const message_id: string = req.query.message_id as string;
